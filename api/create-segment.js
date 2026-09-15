@@ -26,8 +26,10 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Uzyj POST." });
   }
 
-  const restApiKey = process.env.ONESIGNAL_REST_API_KEY;
-  const appId = process.env.ONESIGNAL_APP_ID;
+  // Wklejanie kluczy do panelu Vercela lubi zostawiac spacje i znak nowej linii,
+  // a te trafiaja do naglowka i koncza sie odmowa 401.
+  const restApiKey = (process.env.ONESIGNAL_REST_API_KEY || "").trim();
+  const appId = (process.env.ONESIGNAL_APP_ID || "").trim();
   if (!restApiKey || !appId) {
     return res.status(500).json({
       error: "Brak ONESIGNAL_REST_API_KEY lub ONESIGNAL_APP_ID w zmiennych srodowiskowych.",
@@ -47,34 +49,56 @@ module.exports = async (req, res) => {
     });
   }
 
-  let response;
-  let payload;
-  try {
-    response = await fetch(`https://api.onesignal.com/apps/${appId}/segments`, {
+  const segmentBody = JSON.stringify({
+    name: externalId,
+    filters: [{ field: "tag", key: UID_TAG, relation: "=", value: externalId }],
+  });
+
+  const send = (scheme) =>
+    fetch(`https://api.onesignal.com/apps/${appId}/segments`, {
       method: "POST",
       headers: {
-        Authorization: `Key ${restApiKey}`,
+        Authorization: `${scheme} ${restApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        name: externalId,
-        filters: [{ field: "tag", key: UID_TAG, relation: "=", value: externalId }],
-      }),
+      body: segmentBody,
     });
+
+  // Nowe aplikacje dostaja App API Key uzywany ze schematem "Key". Starsze
+  // maja Legacy REST API Key, ktory dziala tylko z "Basic" — po 401 warto
+  // sprobowac drugiego schematu, zanim uznamy klucz za nieprawidlowy.
+  let response;
+  let payload;
+  let scheme = "Key";
+  try {
+    response = await send(scheme);
+    if (response.status === 401) {
+      scheme = "Basic";
+      response = await send(scheme);
+    }
     payload = await response.json().catch(() => ({}));
   } catch (err) {
     return res.status(502).json({ error: `Nie udalo sie polaczyc z OneSignal: ${err.message}` });
   }
 
   if (response.ok) {
-    return res.status(201).json({ status: "created", segmentId: payload.id, name: externalId });
+    return res.status(201).json({ status: "created", segmentId: payload.id, name: externalId, scheme });
+  }
+
+  if (response.status === 401) {
+    return res.status(401).json({
+      error:
+        "OneSignal odrzucil klucz w obu schematach (Key i Basic). Sprawdz, czy " +
+        "ONESIGNAL_REST_API_KEY to App API Key tej aplikacji (nie Organization API Key) " +
+        "i czy po zmianie zmiennych zrobiles redeploy.",
+    });
   }
 
   // Powtorny zapis tego samego uzytkownika jest normalny — istniejacy segment
   // traktujemy jak sukces, zeby strona nie musiala tego rozrozniac.
   const message = JSON.stringify(payload.errors || payload);
   if (response.status === 409 || /already|taken|exist/i.test(message)) {
-    return res.status(200).json({ status: "exists", name: externalId });
+    return res.status(200).json({ status: "exists", name: externalId, scheme });
   }
 
   return res.status(response.status).json({

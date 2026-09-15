@@ -132,10 +132,13 @@ async function ensureSegment(externalId) {
     return;
   }
 
+  // Schemat autoryzacji zdradza typ klucza: "Basic" oznacza stary Legacy
+  // REST API Key. Warto o tym wiedziec przy pisaniu wlasnych wywolan API.
+  const via = data.scheme === "Basic" ? " (klucz legacy, schemat Basic)" : "";
   if (data.status === "exists") {
-    log(`Segment "${externalId}" juz istnial.`);
+    log(`Segment "${externalId}" juz istnial${via}.`);
   } else {
-    log(`Segment "${externalId}" utworzony — jest juz w kompozytorze w panelu.`, "ok");
+    log(`Segment "${externalId}" utworzony — jest juz w kompozytorze w panelu${via}.`, "ok");
   }
 }
 

@@ -49,6 +49,28 @@ Endpoint `api/create-segment.js` potrzebuje dwoch zmiennych. Vercel ->
 Bez nich reszta demo dziala normalnie — nie powstanie tylko segment, a log
 w sekcji 6 powie dlaczego.
 
+Po zmianie zmiennych zrob **redeploy** — istniejacy deployment ich nie zobaczy.
+
+### HTTP 401 przy tworzeniu segmentu
+
+Klucz dotarl, ale zostal odrzucony. Endpoint probuje obu schematow
+autoryzacji (`Key` dla App API Key, `Basic` dla starszego Legacy REST API Key)
+i przycina biale znaki, wiec zostaja trzy przyczyny:
+
+1. w zmiennej siedzi **Organization API Key** zamiast App API Key
+2. klucz nalezy do innej aplikacji niz `ONESIGNAL_APP_ID`
+3. zmienne ustawione, ale bez redeployu
+
+Szybki test klucza z terminala:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" \
+  https://api.onesignal.com/apps/TWOJ_APP_ID/segments \
+  -H "Authorization: Key TWOJ_KLUCZ"
+```
+
+`200` = klucz dobry.
+
 ## Identyfikacja uzytkownikow
 
 To sedno tego demo. Strona wola `OneSignal.login(id)` **przed** prosba o zgode,
