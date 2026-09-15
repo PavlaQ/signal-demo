@@ -52,6 +52,18 @@ function urlBase64ToUint8Array(base64) {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0));
 }
 
+// Subskrypcja push nalezy do ZAKRESU service workera, nie do pliku. Podmiana
+// workera zostawia wiec stara subskrypcje przy zyciu — razem z kluczem, ktorym
+// ja utworzono. Podpisanie jej naszym kluczem konczy sie wtedy odmowa 403.
+function subscriptionMatchesKey(subscription, expectedKey) {
+  const stored = subscription.options && subscription.options.applicationServerKey;
+  if (!stored) return true; // przegladarka nie ujawnia klucza — nie ma czego porownac
+
+  const actual = new Uint8Array(stored);
+  if (actual.length !== expectedKey.length) return false;
+  return actual.every((byte, i) => byte === expectedKey[i]);
+}
+
 // --- stan ------------------------------------------------------------------
 
 let registration = null;
@@ -113,11 +125,26 @@ async function subscribe(userId) {
 
   // 3. Subskrypcja w przegladarce. userVisibleOnly jest wymagane — przegladarki
   //    nie pozwalaja na ciche pushe do stron.
+  const keyBytes = urlBase64ToUint8Array(vapidPublicKey);
   let subscription = await registration.pushManager.getSubscription();
+
+  if (subscription && !subscriptionMatchesKey(subscription, keyBytes)) {
+    // Pozostalosc po poprzedniej konfiguracji albo po rotacji kluczy. Nigdy nie
+    // przyjmie naszego podpisu, wiec kasujemy ja po obu stronach.
+    log("Zastana subskrypcja nalezy do innego klucza — tworze nowa.", "warn");
+    await fetch("/api/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    }).catch(() => {});
+    await subscription.unsubscribe();
+    subscription = null;
+  }
+
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      applicationServerKey: keyBytes,
     });
     log(`Subskrypcja utworzona (${new URL(subscription.endpoint).host}).`, "ok");
   }
