@@ -254,3 +254,23 @@ footer p { margin: 6px 0; }
   .status-grid { grid-template-columns: 1fr; gap: 4px 0; }
   .status-grid dd { margin-bottom: 10px; }
 }
+
+/* ---------- snippet ---------- */
+.snippet { display: flex; gap: 8px; align-items: flex-start; }
+.snippet pre {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow-x: auto;
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #b9d4ff;
+}
+.snippet pre[data-ready="false"] { color: var(--text-dim); white-space: normal; }
+.snippet .btn-ghost { margin-top: 4px; }

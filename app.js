@@ -1,10 +1,15 @@
 // ---------------------------------------------------------------------------
-// Demo OneSignal Web SDK v16. Cala logika strony siedzi tutaj.
-// Kolejnosc: helpery UI -> init SDK -> nasluch zdarzen -> obsluga przyciskow.
+// Demo OneSignal Web SDK v16.
+//
+// Glowna idea: uzytkownik nie zapisuje sie anonimowo. Najpierw podaje wlasne
+// ID (External ID), dopiero potem prosimy przegladarke o zgode. Dzieki temu
+// kazda subskrypcja jest od razu przypisana do konkretnej osoby i mozna do
+// niej wyslac powiadomienie pojedynczo.
 // ---------------------------------------------------------------------------
 
 const $ = (id) => document.getElementById(id);
 const cfg = window.DEMO_CONFIG;
+const STORAGE_KEY = "demo_external_id";
 
 // Kolejka SDK. Wszystko co dotyka OneSignala wrzucamy tutaj — SDK laduje sie
 // asynchronicznie (defer), wiec bezposrednie wywolania moglyby wyprzedzic init.
@@ -15,9 +20,8 @@ window.OneSignalDeferred = window.OneSignalDeferred || [];
 function log(message, kind = "info") {
   const li = document.createElement("li");
   li.dataset.kind = kind;
-  const time = new Date().toLocaleTimeString("pl-PL");
   li.innerHTML = `<span class="t"></span><span class="m"></span>`;
-  li.querySelector(".t").textContent = time;
+  li.querySelector(".t").textContent = new Date().toLocaleTimeString("pl-PL");
   li.querySelector(".m").textContent = message;
   const list = $("log");
   list.prepend(li);
@@ -39,9 +43,42 @@ function setPill(id, text, kind) {
   el.className = `pill pill-${kind}`;
 }
 
+// Zapamietane ID przezywa odswiezenie strony. Tryb prywatny potrafi rzucic
+// wyjatkiem przy dostepie do localStorage, wiec kazde uzycie jest oslonione.
+function rememberedId() {
+  try { return localStorage.getItem(STORAGE_KEY) || ""; } catch { return ""; }
+}
+function rememberId(value) {
+  try { value ? localStorage.setItem(STORAGE_KEY, value) : localStorage.removeItem(STORAGE_KEY); } catch {}
+}
+
+// --- snippet do wysylki ----------------------------------------------------
+
+function renderSnippet(externalId) {
+  const pre = $("curl-snippet");
+  if (!externalId) {
+    pre.textContent = "Zapisz sie z wlasnym ID, a polecenie pojawi sie tutaj.";
+    pre.dataset.ready = "false";
+    return;
+  }
+  const payload = {
+    app_id: cfg.appId,
+    target_channel: "push",
+    include_aliases: { external_id: [externalId] },
+    headings: { en: "Czesc!" },
+    contents: { en: `To powiadomienie poszlo tylko do ${externalId}` },
+  };
+  pre.textContent =
+    `curl -X POST https://api.onesignal.com/notifications \\\n` +
+    `  -H "Authorization: Key TWOJ_REST_API_KEY" \\\n` +
+    `  -H "Content-Type: application/json" \\\n` +
+    `  -d '${JSON.stringify(payload, null, 2).replace(/\n/g, "\n  ")}'`;
+  pre.dataset.ready = "true";
+}
+
 // --- odswiezanie panelu statusu --------------------------------------------
 
-async function refreshStatus(OneSignal) {
+function refreshStatus(OneSignal) {
   // Zgoda przegladarki: 'default' (jeszcze nie pytano), 'granted', 'denied'.
   const native = OneSignal.Notifications.permissionNative;
   const permMap = {
@@ -57,12 +94,23 @@ async function refreshStatus(OneSignal) {
   const optedIn = OneSignal.User.PushSubscription.optedIn === true;
   setPill("stat-optedin", optedIn ? "aktywna" : "nieaktywna", optedIn ? "ok" : "muted");
 
+  const externalId = OneSignal.User.externalId || "";
+  $("stat-extid").textContent = externalId || "—";
   $("stat-subid").textContent = OneSignal.User.PushSubscription.id || "—";
   $("stat-osid").textContent = OneSignal.User.onesignalId || "—";
-  $("stat-extid").textContent = OneSignal.User.externalId || "—";
+  renderSnippet(externalId);
 
-  $("btn-subscribe").disabled = optedIn || native === "denied";
   $("btn-unsubscribe").disabled = !optedIn;
+  $("btn-logout").disabled = !externalId;
+  syncSignupButton(native === "denied");
+}
+
+// Zapis jest mozliwy dopiero gdy pole ID nie jest puste — to pilnuje, zeby
+// nikt nie wyladowal w bazie jako anonim.
+function syncSignupButton(permissionDenied = false) {
+  const hasId = $("external-id").value.trim().length > 0;
+  $("btn-signup").disabled = !hasId || permissionDenied;
+  $("id-hint").hidden = hasId;
 }
 
 async function refreshTags(OneSignal) {
@@ -93,6 +141,9 @@ async function refreshTags(OneSignal) {
 // --- start -----------------------------------------------------------------
 
 $("foot-appid").textContent = cfg.appId;
+$("external-id").value = rememberedId();
+renderSnippet("");
+syncSignupButton();
 
 OneSignalDeferred.push(async function (OneSignal) {
   try {
@@ -109,23 +160,33 @@ OneSignalDeferred.push(async function (OneSignal) {
     log(`Sprawdz, czy ${location.origin} jest wpisane jako Site URL w panelu OneSignal.`, "warn");
     setPill("stat-permission", "SDK niegotowe", "bad");
     setPill("stat-optedin", "SDK niegotowe", "bad");
+    $("btn-signup").disabled = true;
+    $("id-hint").hidden = true;
     return;
   }
 
   log("SDK zainicjalizowane.", "ok");
-  await refreshStatus(OneSignal);
+
+  // Odtworzenie tozsamosci po odswiezeniu strony.
+  const saved = rememberedId();
+  if (saved && !OneSignal.User.externalId) {
+    await OneSignal.login(saved);
+    log(`Przywrocono ID z poprzedniej wizyty: ${saved}`);
+  }
+
+  refreshStatus(OneSignal);
   await refreshTags(OneSignal);
 
   // --- zdarzenia ----------------------------------------------------------
 
   // Zmiana zgody w przegladarce (takze gdy uzytkownik zmieni ja w ustawieniach).
-  OneSignal.Notifications.addEventListener("permissionChange", async (granted) => {
+  OneSignal.Notifications.addEventListener("permissionChange", (granted) => {
     log(`Zgoda przegladarki: ${granted ? "przyznana" : "cofnieta"}`, granted ? "ok" : "warn");
-    await refreshStatus(OneSignal);
+    refreshStatus(OneSignal);
   });
 
   // Subskrypcja: pojawienie sie ID, opt-in, opt-out.
-  OneSignal.User.PushSubscription.addEventListener("change", async (event) => {
+  OneSignal.User.PushSubscription.addEventListener("change", (event) => {
     const prev = event.previous || {};
     const curr = event.current || {};
     if (curr.optedIn !== prev.optedIn) {
@@ -134,7 +195,7 @@ OneSignalDeferred.push(async function (OneSignal) {
     if (curr.id && curr.id !== prev.id) {
       log(`Subscription ID: ${curr.id}`);
     }
-    await refreshStatus(OneSignal);
+    refreshStatus(OneSignal);
   });
 
   // Powiadomienie dotarlo, gdy karta jest otwarta i aktywna.
@@ -157,20 +218,48 @@ OneSignalDeferred.push(async function (OneSignal) {
 
   // --- przyciski ----------------------------------------------------------
 
-  $("btn-subscribe").addEventListener("click", async () => {
+  // Jedno klikniecie = przypisanie ID + prosba o zgode. Kolejnosc ma znaczenie:
+  // login() przed opt-inem sprawia, ze subskrypcja od razu powstaje pod
+  // wlasciwym uzytkownikiem, zamiast najpierw anonimowo i dopiero potem migrowac.
+  $("signup-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const id = $("external-id").value.trim();
+    if (!id) return;
+
+    await OneSignal.login(id);
+    rememberId(id);
+    log(`Przypisano External ID: ${id}`, "ok");
+
     if (OneSignal.Notifications.permissionNative === "granted") {
-      // Zgoda juz jest — wystarczy wrocic do subskrypcji.
+      // Zgoda juz jest — wystarczy wrocic do subskrypcji, prompt sie nie pokaze.
       await OneSignal.User.PushSubscription.optIn();
     } else {
       // Natywny prompt przegladarki. Da sie wywolac tylko z gestu uzytkownika.
+      const before = OneSignal.Notifications.permissionNative;
       await OneSignal.Notifications.requestPermission();
+      const after = OneSignal.Notifications.permissionNative;
+      log(`Prosba o zgode: ${before} -> ${after}`);
+
+      // Chrome potrafi stlumic prompt ("quieter messaging") — wtedy zamiast
+      // okna pojawia sie tylko przekreslony dzwonek w pasku adresu, a stan
+      // zgody nie zmienia sie wcale. Bez tego wpisu wyglada to jak martwy przycisk.
+      if (before === "default" && after === "default") {
+        log("Przegladarka nie pokazala okna i nie zmienila zgody — sprawdz ikone w pasku adresu.", "warn");
+      }
     }
-    await refreshStatus(OneSignal);
+    refreshStatus(OneSignal);
   });
 
   $("btn-unsubscribe").addEventListener("click", async () => {
     await OneSignal.User.PushSubscription.optOut();
-    await refreshStatus(OneSignal);
+    refreshStatus(OneSignal);
+  });
+
+  $("btn-logout").addEventListener("click", async () => {
+    await OneSignal.logout();
+    rememberId("");
+    log("ID odpiete — subskrypcja wrocila do anonimowej.", "warn");
+    refreshStatus(OneSignal);
   });
 
   $("btn-slidedown").addEventListener("click", async () => {
@@ -192,31 +281,21 @@ OneSignalDeferred.push(async function (OneSignal) {
 
   $("btn-refresh-tags").addEventListener("click", () => refreshTags(OneSignal));
 
-  $("login-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const id = $("external-id").value.trim();
-    if (!id) return;
-    await OneSignal.login(id);
-    log(`Zalogowano jako: ${id}`, "ok");
-    await refreshStatus(OneSignal);
-  });
-
-  $("btn-logout").addEventListener("click", async () => {
-    await OneSignal.logout();
-    log("Wylogowano — subskrypcja wrocila do anonimowej.", "warn");
-    await refreshStatus(OneSignal);
-  });
-
-  // ID pojawiaja sie chwile po inicie, wiec odswiezamy jeszcze raz.
+  // Subscription ID i OneSignal ID pojawiaja sie chwile po inicie.
   setTimeout(() => refreshStatus(OneSignal), 2000);
 });
 
 // --- rzeczy niezalezne od SDK ----------------------------------------------
 
+$("external-id").addEventListener("input", () => syncSignupButton());
+
 document.querySelectorAll("[data-copy]").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    const text = $(btn.dataset.copy).textContent.trim();
-    if (!text || text === "—") return toast("Nie ma czego kopiowac");
+    const source = $(btn.dataset.copy);
+    const text = source.textContent.trim();
+    if (!text || text === "—" || source.dataset.ready === "false") {
+      return toast("Nie ma czego kopiowac");
+    }
     try {
       await navigator.clipboard.writeText(text);
       toast("Skopiowane");

@@ -16,14 +16,41 @@
 <header class="hero">
   <span class="bell">🔔</span>
   <h1>OneSignal Web Push</h1>
-  <p>Demo mozliwosci Web SDK v16 — subskrypcja, tagi, identyfikacja i zdarzenia na zywo.</p>
+  <p>Demo Web SDK v16 — zapis uzytkownika pod wlasnym ID, tagi i zdarzenia na zywo.</p>
 </header>
 
 <main>
 
-  <!-- 1. STATUS -->
+  <!-- 1. ZAPIS -->
   <section class="card">
-    <h2><span class="num">1</span> Status</h2>
+    <h2><span class="num">1</span> Zapis uzytkownika</h2>
+    <p class="lead">
+      Podaj ID uzytkownika z Twojego systemu. Trafi do OneSignala jako <strong>External ID</strong>
+      i to po nim bedziesz pozniej wysylac powiadomienia pojedynczo.
+    </p>
+
+    <form id="signup-form" class="inline-form">
+      <input id="external-id" type="text" placeholder="np. user_1234" autocomplete="off"
+             spellcheck="false" required />
+      <button id="btn-signup" class="btn btn-primary" type="submit" disabled>Zapisz mnie</button>
+    </form>
+
+    <div class="btn-row">
+      <button id="btn-unsubscribe" class="btn">Wylacz powiadomienia</button>
+      <button id="btn-logout" class="btn">Odepnij ID</button>
+      <button id="btn-slidedown" class="btn">Pokaz prompt OneSignala</button>
+    </div>
+
+    <p class="hint" id="id-hint">Wpisz ID, zeby odblokowac zapis.</p>
+    <p class="hint" id="perm-warning" hidden>
+      Zgoda jest zablokowana na poziomie przegladarki. Odblokuj ja w ustawieniach strony
+      (ikona klodki w pasku adresu) i odswiez — inaczej prompt sie nie pokaze.
+    </p>
+  </section>
+
+  <!-- 2. STATUS -->
+  <section class="card">
+    <h2><span class="num">2</span> Status</h2>
     <dl class="status-grid">
       <dt>Zgoda przegladarki</dt>
       <dd><span id="stat-permission" class="pill pill-muted">—</span></dd>
@@ -31,43 +58,47 @@
       <dt>Subskrypcja push</dt>
       <dd><span id="stat-optedin" class="pill pill-muted">—</span></dd>
 
+      <dt>External ID</dt>
+      <dd class="copyrow">
+        <code id="stat-extid">—</code>
+        <button class="btn-ghost" data-copy="stat-extid">Kopiuj</button>
+      </dd>
+
       <dt>Subscription ID</dt>
       <dd class="copyrow">
         <code id="stat-subid">—</code>
-        <button class="btn-ghost" data-copy="stat-subid" title="Kopiuj">Kopiuj</button>
+        <button class="btn-ghost" data-copy="stat-subid">Kopiuj</button>
       </dd>
 
       <dt>OneSignal ID</dt>
       <dd class="copyrow">
         <code id="stat-osid">—</code>
-        <button class="btn-ghost" data-copy="stat-osid" title="Kopiuj">Kopiuj</button>
+        <button class="btn-ghost" data-copy="stat-osid">Kopiuj</button>
       </dd>
     </dl>
-    <p class="hint">
-      Skopiuj <strong>Subscription ID</strong> i wklej w OneSignal &rarr; <em>Messages &rarr; New Push &rarr;
-      Send to Test Device</em>, zeby wyslac powiadomienie tylko na to urzadzenie.
-    </p>
   </section>
 
-  <!-- 2. SUBSKRYPCJA -->
+  <!-- 3. WYSYLKA -->
   <section class="card">
-    <h2><span class="num">2</span> Subskrypcja</h2>
-    <p class="lead">Wlasne przyciski zamiast domyslnego dzwonka OneSignala — pelna kontrola nad momentem pytania o zgode.</p>
-    <div class="btn-row">
-      <button id="btn-subscribe" class="btn btn-primary">Wlacz powiadomienia</button>
-      <button id="btn-unsubscribe" class="btn">Wylacz</button>
-      <button id="btn-slidedown" class="btn">Pokaz prompt OneSignala</button>
+    <h2><span class="num">3</span> Wyslij do tego uzytkownika</h2>
+    <p class="lead">
+      Gotowe polecenie celujace w Twoje External ID. Podmien
+      <code>TWOJ_REST_API_KEY</code> i wklej do terminala.
+    </p>
+    <div class="snippet">
+      <pre id="curl-snippet">—</pre>
+      <button class="btn-ghost" data-copy="curl-snippet">Kopiuj</button>
     </div>
-    <p class="hint" id="perm-warning" hidden>
-      Zgoda jest zablokowana na poziomie przegladarki. Odblokuj ja w ustawieniach strony
-      (ikona klodki w pasku adresu), inaczej przyciski nic nie zrobia.
+    <p class="hint">
+      Klucz znajdziesz w OneSignal &rarr; <em>Settings &rarr; Keys &amp; IDs &rarr; REST API Key</em>.
+      Nie wklejaj go do kodu strony — z przegladarki kazdy moglby go odczytac.
     </p>
   </section>
 
-  <!-- 3. TAGI -->
+  <!-- 4. TAGI -->
   <section class="card">
-    <h2><span class="num">3</span> Tagi <span class="tagline">segmentacja odbiorcow</span></h2>
-    <p class="lead">Tagi pozwalaja wyslac push tylko do czesci uzytkownikow, np. <code>plan = pro</code>.</p>
+    <h2><span class="num">4</span> Tagi <span class="tagline">segmentacja</span></h2>
+    <p class="lead">Do wysylki grupowej zamiast pojedynczej, np. wszyscy z <code>plan = pro</code>.</p>
     <form id="tag-form" class="inline-form">
       <input id="tag-key" type="text" placeholder="klucz (np. plan)" autocomplete="off" required />
       <input id="tag-value" type="text" placeholder="wartosc (np. pro)" autocomplete="off" required />
@@ -77,20 +108,6 @@
       <button id="btn-refresh-tags" class="btn">Odswiez liste</button>
     </div>
     <ul id="tag-list" class="tag-list"><li class="empty">Brak tagow.</li></ul>
-  </section>
-
-  <!-- 4. EXTERNAL ID -->
-  <section class="card">
-    <h2><span class="num">4</span> External ID <span class="tagline">identyfikacja</span></h2>
-    <p class="lead">Polacz subskrypcje z ID uzytkownika z Twojego systemu — jeden uzytkownik, wiele urzadzen.</p>
-    <form id="login-form" class="inline-form">
-      <input id="external-id" type="text" placeholder="np. user_1234" autocomplete="off" required />
-      <button class="btn btn-primary" type="submit">Zaloguj</button>
-    </form>
-    <div class="btn-row">
-      <button id="btn-logout" class="btn">Wyloguj</button>
-    </div>
-    <p class="hint">Aktualne External ID: <code id="stat-extid">—</code></p>
   </section>
 
   <!-- 5. LOG -->
@@ -107,7 +124,7 @@
 
 <footer>
   <p>App ID: <code id="foot-appid">—</code></p>
-  <p>Wysylka powiadomien odbywa sie z panelu OneSignal — ta strona tylko je odbiera.</p>
+  <p>Wysylka odbywa sie z panelu OneSignal lub przez REST API — ta strona tylko odbiera.</p>
 </footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
