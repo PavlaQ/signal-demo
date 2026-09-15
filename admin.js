@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
 // Panel wysylki. Lista zapisanych uzytkownikow + osobne powiadomienie do kazdego.
 //
-// Wysylka idzie przez include_aliases (External ID), wiec nie wymaga segmentow
-// ani platnego planu. Lista uzytkownikow korzysta z endpointu listujacego
-// subskrypcje — ten bywa niedostepny, dlatego formularz "wyslij na wpisane ID"
-// dziala niezaleznie od niej.
+// Dane pochodza z wlasnej bazy, a wysylka idzie wprost pod endpoint przegladarki,
+// podpisana kluczem VAPID. Formularz "wyslij na wpisane ID" dziala niezaleznie
+// od listy, zeby awaria odczytu nie unieruchomila calego panelu.
 // ---------------------------------------------------------------------------
 
 const $ = (id) => document.getElementById(id);
@@ -48,9 +47,12 @@ function headers() {
     : { "Content-Type": "application/json" };
 }
 
-function relativeTime(unixSeconds) {
-  if (!unixSeconds) return "—";
-  const minutes = Math.round((Date.now() / 1000 - unixSeconds) / 60);
+function relativeTime(timestamp) {
+  if (!timestamp) return "—";
+  // Postgres oddaje znacznik czasu jako ISO string, nie liczbe sekund.
+  const then = new Date(timestamp).getTime();
+  if (Number.isNaN(then)) return "—";
+  const minutes = Math.round((Date.now() - then) / 60000);
   if (minutes < 1) return "przed chwila";
   if (minutes < 60) return `${minutes} min temu`;
   const hours = Math.round(minutes / 60);
@@ -60,7 +62,7 @@ function relativeTime(unixSeconds) {
 
 // --- wysylka ---------------------------------------------------------------
 
-async function sendTo(externalId, title, message, button) {
+async function sendTo(userId, title, message, button) {
   const label = button.textContent;
   button.disabled = true;
   button.textContent = "Wysylam…";
@@ -69,29 +71,31 @@ async function sendTo(externalId, title, message, button) {
     const res = await fetch("/api/send", {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ externalId, title, message }),
+      body: JSON.stringify({ userId, title, message }),
     });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      log(`${externalId}: ${data.error || `HTTP ${res.status}`}`, "bad");
+      log(`${userId}: ${data.error || `HTTP ${res.status}`}`, "bad");
       toast("Nie wyslano");
       return false;
     }
 
-    // OneSignal odpowiada 200 takze wtedy, gdy nikogo nie da sie powiadomic.
-    if (data.status === "nobody") {
-      log(`${externalId}: ${data.error}`, "warn");
-      toast("Brak odbiorcow");
+    // Wygasle subskrypcje sa kasowane po drodze, wiec warto o nich powiedziec —
+    // inaczej znikajace urzadzenia wygladalyby na blad.
+    const expired = data.removedExpired ? `, usunieto wygaslych: ${data.removedExpired}` : "";
+    if (data.delivered === 0) {
+      log(`${userId}: nic nie doszlo${expired}. ${data.failures.join("; ")}`, "bad");
+      toast("Nie wyslano");
       return false;
     }
 
-    const count = data.recipients != null ? ` (${data.recipients} urzadzen)` : "";
-    log(`${externalId}: wyslane${count}. ID ${data.notificationId}`, "ok");
+    log(`${userId}: dostarczone na ${data.delivered} urzadzen${expired}`, "ok");
+    if (data.failures.length) log(`${userId}: bledy — ${data.failures.join("; ")}`, "warn");
     toast("Wyslane");
     return true;
   } catch (err) {
-    log(`${externalId}: blad sieci — ${err.message}`, "bad");
+    log(`${userId}: blad sieci — ${err.message}`, "bad");
     return false;
   } finally {
     button.disabled = false;
@@ -117,11 +121,11 @@ function renderUsers(users) {
     const head = document.createElement("div");
     head.className = "user-head";
     const name = document.createElement("code");
-    name.textContent = user.externalId;
+    name.textContent = user.userId;
     const meta = document.createElement("span");
     meta.className = "user-meta";
     const devices = user.devices === 1 ? "1 urzadzenie" : `${user.devices} urzadzenia`;
-    meta.textContent = `${devices} · ${relativeTime(user.lastActive)}`;
+    meta.textContent = `${devices} · ${relativeTime(user.lastSeen)}`;
     head.append(name, meta);
 
     const form = document.createElement("form");
@@ -136,7 +140,7 @@ function renderUsers(users) {
       const message = form.querySelector(".u-message").value.trim();
       if (!message) return;
       const ok = await sendTo(
-        user.externalId,
+        user.userId,
         form.querySelector(".u-title").value.trim(),
         message,
         form.querySelector("button"),
@@ -181,13 +185,11 @@ async function loadUsers() {
 
   $("token-card").hidden = true;
   $("warn-open").hidden = data.unprotected !== true;
-  $("user-count").textContent = `${data.users.length} zapisanych · ${data.totalSubscriptions} subskrypcji`;
+  $("user-count").textContent = `${data.users.length} zapisanych · ${data.totalDevices} urzadzen`;
   renderUsers(data.users);
 }
 
 // --- start -----------------------------------------------------------------
-
-$("foot-appid").textContent = window.DEMO_CONFIG.appId;
 
 $("token-form").addEventListener("submit", (e) => {
   e.preventDefault();

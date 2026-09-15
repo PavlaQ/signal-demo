@@ -3,20 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>OneSignal Web Push — Demo</title>
+  <title>Web Push — Demo</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>" />
-
-  <script src="config.js"></script>
-  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
 
 <header class="hero">
   <span class="bell">🔔</span>
-  <h1>OneSignal Web Push</h1>
-  <p>Demo Web SDK v16 — zapis uzytkownika pod wlasnym ID, tagi i zdarzenia na zywo.</p>
+  <h1>Web Push</h1>
+  <p>Powiadomienia bez uslug trzecich — wlasne klucze VAPID, wlasna baza subskrypcji.</p>
+  <p><a class="backlink" href="admin.html">panel wysylki &rarr;</a></p>
 </header>
 
 <main>
@@ -25,30 +23,24 @@
   <section class="card">
     <h2><span class="num">1</span> Zapis uzytkownika</h2>
     <p class="lead">
-      Podaj ID uzytkownika z Twojego systemu. Trafi do OneSignala jako <strong>External ID</strong>
-      i to po nim bedziesz pozniej wysylac powiadomienia pojedynczo.
+      Podaj ID uzytkownika z Twojego systemu. Subskrypcja tej przegladarki
+      zostanie z nim zwiazana i to po nim wysylasz powiadomienia.
     </p>
 
     <form id="signup-form" class="inline-form">
-      <input id="external-id" type="text" placeholder="np. user_1234" autocomplete="off"
+      <input id="user-id" type="text" placeholder="np. user_1234" autocomplete="off"
              spellcheck="false" required />
       <button id="btn-signup" class="btn btn-primary" type="submit" disabled>Zapisz mnie</button>
     </form>
 
     <div class="btn-row">
-      <button id="btn-unsubscribe" class="btn">Wylacz powiadomienia</button>
-      <button id="btn-logout" class="btn">Odepnij ID</button>
-      <button id="btn-slidedown" class="btn">Pokaz prompt OneSignala</button>
+      <button id="btn-unsubscribe" class="btn" disabled>Wypisz to urzadzenie</button>
     </div>
 
     <p class="hint" id="id-hint">Wpisz ID, zeby odblokowac zapis.</p>
-    <p class="hint">
-      Zapisanych uzytkownikow zobaczysz w <a href="admin.html">panelu wysylki</a>,
-      gdzie do kazdego wyslesz osobne powiadomienie.
-    </p>
     <p class="hint" id="perm-warning" hidden>
-      Zgoda jest zablokowana na poziomie przegladarki. Odblokuj ja w ustawieniach strony
-      (ikona klodki w pasku adresu) i odswiez — inaczej prompt sie nie pokaze.
+      Zgoda jest zablokowana na poziomie przegladarki. Odblokuj ja w ustawieniach
+      strony (ikona klodki w pasku adresu) i odswiez — inaczej prompt sie nie pokaze.
     </p>
   </section>
 
@@ -60,96 +52,30 @@
       <dd><span id="stat-permission" class="pill pill-muted">—</span></dd>
 
       <dt>Subskrypcja push</dt>
-      <dd><span id="stat-optedin" class="pill pill-muted">—</span></dd>
+      <dd><span id="stat-subscribed" class="pill pill-muted">—</span></dd>
 
-      <dt>External ID</dt>
+      <dt>Service worker</dt>
+      <dd><span id="stat-sw" class="pill pill-muted">—</span></dd>
+
+      <dt>Twoje ID</dt>
       <dd class="copyrow">
-        <code id="stat-extid">—</code>
-        <button class="btn-ghost" data-copy="stat-extid">Kopiuj</button>
+        <code id="stat-user">—</code>
+        <button class="btn-ghost" data-copy="stat-user">Kopiuj</button>
       </dd>
 
-      <dt>Subscription ID</dt>
-      <dd class="copyrow">
-        <code id="stat-subid">—</code>
-        <button class="btn-ghost" data-copy="stat-subid">Kopiuj</button>
-      </dd>
-
-      <dt>OneSignal ID</dt>
-      <dd class="copyrow">
-        <code id="stat-osid">—</code>
-        <button class="btn-ghost" data-copy="stat-osid">Kopiuj</button>
-      </dd>
+      <dt>Serwer push</dt>
+      <dd><code id="stat-endpoint">—</code></dd>
     </dl>
-  </section>
-
-  <!-- 3. WYSYLKA -->
-  <section class="card">
-    <h2><span class="num">3</span> Wyslij do tego uzytkownika</h2>
-    <p class="lead">
-      Gotowe polecenie celujace w Twoje External ID. Podmien
-      <code>TWOJ_REST_API_KEY</code> i wklej do terminala.
-    </p>
-    <div class="snippet">
-      <pre id="curl-snippet">—</pre>
-      <button class="btn-ghost" data-copy="curl-snippet">Kopiuj</button>
-    </div>
     <p class="hint">
-      Klucz znajdziesz w OneSignal &rarr; <em>Settings &rarr; Keys &amp; IDs &rarr; REST API Key</em>.
-      Nie wklejaj go do kodu strony — z przegladarki kazdy moglby go odczytac.
+      „Serwer push" to host, ktory dostarcza powiadomienia do tej przegladarki —
+      Google dla Chrome, Mozilla dla Firefoksa. Nie masz tam konta i nic nie placisz.
     </p>
   </section>
 
-  <!-- 4. GRUPA -->
+  <!-- 3. LOG -->
   <section class="card">
-    <h2><span class="num">4</span> Grupa <span class="tagline">wysylka zbiorcza</span></h2>
-    <p class="lead">
-      Przypisz sie do grupy, a dostaniesz polecenie wysylajace push do
-      <strong>wszystkich</strong> jej czlonkow. Pod spodem to zwykly tag
-      <code>grupa</code> — segmentu nie trzeba nigdzie zakladac.
-    </p>
-
-    <form id="group-form" class="inline-form">
-      <input id="group-name" type="text" placeholder="np. vip" autocomplete="off"
-             spellcheck="false" required />
-      <button id="btn-group" class="btn btn-primary" type="submit" disabled>Przypisz do grupy</button>
-    </form>
-
-    <div class="btn-row">
-      <button id="btn-leave-group" class="btn" disabled>Wyjdz z grupy</button>
-    </div>
-
-    <p class="hint">Aktualna grupa: <code id="stat-group">—</code></p>
-
-    <div class="snippet">
-      <pre id="curl-group">—</pre>
-      <button class="btn-ghost" data-copy="curl-group">Kopiuj</button>
-    </div>
-    <p class="hint">
-      <code>filters</code> liczy odbiorcow w momencie wysylki, wiec nie trzeba
-      wczesniej tworzyc segmentu w panelu. Segment zaloz dopiero wtedy, gdy ta
-      sama grupa przyda Ci sie regularnie.
-    </p>
-  </section>
-
-  <!-- 5. TAGI -->
-  <section class="card">
-    <h2><span class="num">5</span> Tagi <span class="tagline">dowolne pary</span></h2>
-    <p class="lead">To samo co wyzej, ale bez ograniczenia do jednego klucza — np. <code>plan = pro</code>.</p>
-    <form id="tag-form" class="inline-form">
-      <input id="tag-key" type="text" placeholder="klucz (np. plan)" autocomplete="off" required />
-      <input id="tag-value" type="text" placeholder="wartosc (np. pro)" autocomplete="off" required />
-      <button class="btn btn-primary" type="submit">Dodaj tag</button>
-    </form>
-    <div class="btn-row">
-      <button id="btn-refresh-tags" class="btn">Odswiez liste</button>
-    </div>
-    <ul id="tag-list" class="tag-list"><li class="empty">Brak tagow.</li></ul>
-  </section>
-
-  <!-- 6. LOG -->
-  <section class="card">
-    <h2><span class="num">6</span> Zdarzenia na zywo</h2>
-    <p class="lead">Klikniecia w powiadomienie, dostarczenia przy otwartej karcie, zmiany zgody i subskrypcji.</p>
+    <h2><span class="num">3</span> Zdarzenia na zywo</h2>
+    <p class="lead">Zapis, wypisanie oraz powiadomienia odebrane przy otwartej karcie.</p>
     <div class="btn-row">
       <button id="btn-clear-log" class="btn">Wyczysc log</button>
     </div>
@@ -159,8 +85,7 @@
 </main>
 
 <footer>
-  <p>App ID: <code id="foot-appid">—</code></p>
-  <p>Wysylka odbywa sie z panelu OneSignal lub przez REST API — ta strona tylko odbiera.</p>
+  <p>Wysylke odpalasz z <a href="admin.html">panelu</a>. Ta strona tylko odbiera.</p>
 </footer>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
