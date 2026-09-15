@@ -10,6 +10,7 @@
 const $ = (id) => document.getElementById(id);
 const cfg = window.DEMO_CONFIG;
 const STORAGE_KEY = "demo_external_id";
+const GROUP_TAG = "grupa";
 
 // Kolejka SDK. Wszystko co dotyka OneSignala wrzucamy tutaj — SDK laduje sie
 // asynchronicznie (defer), wiec bezposrednie wywolania moglyby wyprzedzic init.
@@ -54,6 +55,15 @@ function rememberId(value) {
 
 // --- snippet do wysylki ----------------------------------------------------
 
+function renderCurl(payload) {
+  return (
+    `curl -X POST https://api.onesignal.com/notifications \\\n` +
+    `  -H "Authorization: Key TWOJ_REST_API_KEY" \\\n` +
+    `  -H "Content-Type: application/json" \\\n` +
+    `  -d '${JSON.stringify(payload, null, 2).replace(/\n/g, "\n  ")}'`
+  );
+}
+
 function renderSnippet(externalId) {
   const pre = $("curl-snippet");
   if (!externalId) {
@@ -68,11 +78,26 @@ function renderSnippet(externalId) {
     headings: { en: "Czesc!" },
     contents: { en: `To powiadomienie poszlo tylko do ${externalId}` },
   };
-  pre.textContent =
-    `curl -X POST https://api.onesignal.com/notifications \\\n` +
-    `  -H "Authorization: Key TWOJ_REST_API_KEY" \\\n` +
-    `  -H "Content-Type: application/json" \\\n` +
-    `  -d '${JSON.stringify(payload, null, 2).replace(/\n/g, "\n  ")}'`;
+  pre.textContent = renderCurl(payload);
+  pre.dataset.ready = "true";
+}
+
+// Grupa to zwykly tag o ustalonym kluczu. Wysylka celuje w nia filtrem
+// liczonym w momencie wyslania, wiec segment w panelu jest zbedny.
+function renderGroupSnippet(group) {
+  const pre = $("curl-group");
+  if (!group) {
+    pre.textContent = "Przypisz sie do grupy, a polecenie pojawi sie tutaj.";
+    pre.dataset.ready = "false";
+    return;
+  }
+  pre.textContent = renderCurl({
+    app_id: cfg.appId,
+    target_channel: "push",
+    filters: [{ field: "tag", key: GROUP_TAG, relation: "=", value: group }],
+    headings: { en: "Czesc!" },
+    contents: { en: `Push do calej grupy ${group}` },
+  });
   pre.dataset.ready = "true";
 }
 
@@ -113,12 +138,25 @@ function syncSignupButton(permissionDenied = false) {
   $("id-hint").hidden = hasId;
 }
 
+function syncGroupButton() {
+  $("btn-group").disabled = $("group-name").value.trim().length === 0;
+}
+
 async function refreshTags(OneSignal) {
   const tags = (await OneSignal.User.getTags()) || {};
+
+  // Tag grupy ma wlasna sekcje, wiec nie dubluje sie na liscie ponizej.
+  const group = tags[GROUP_TAG] || "";
+  $("stat-group").textContent = group || "—";
+  $("btn-leave-group").disabled = !group;
+  if (group && !$("group-name").value.trim()) $("group-name").value = group;
+  renderGroupSnippet(group);
+  syncGroupButton();
+
   const list = $("tag-list");
   list.innerHTML = "";
 
-  const entries = Object.entries(tags);
+  const entries = Object.entries(tags).filter(([key]) => key !== GROUP_TAG);
   if (entries.length === 0) {
     list.innerHTML = '<li class="empty">Brak tagow.</li>';
     return;
@@ -143,7 +181,9 @@ async function refreshTags(OneSignal) {
 $("foot-appid").textContent = cfg.appId;
 $("external-id").value = rememberedId();
 renderSnippet("");
+renderGroupSnippet("");
 syncSignupButton();
+syncGroupButton();
 
 OneSignalDeferred.push(async function (OneSignal) {
   try {
@@ -161,6 +201,7 @@ OneSignalDeferred.push(async function (OneSignal) {
     setPill("stat-permission", "SDK niegotowe", "bad");
     setPill("stat-optedin", "SDK niegotowe", "bad");
     $("btn-signup").disabled = true;
+    $("btn-group").disabled = true;
     $("id-hint").hidden = true;
     return;
   }
@@ -279,6 +320,22 @@ OneSignalDeferred.push(async function (OneSignal) {
     await refreshTags(OneSignal);
   });
 
+  $("group-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const group = $("group-name").value.trim();
+    if (!group) return;
+    await OneSignal.User.addTag(GROUP_TAG, group);
+    log(`Przypisano do grupy: ${group}`, "ok");
+    await refreshTags(OneSignal);
+  });
+
+  $("btn-leave-group").addEventListener("click", async () => {
+    await OneSignal.User.removeTag(GROUP_TAG);
+    $("group-name").value = "";
+    log("Wyjscie z grupy.", "warn");
+    await refreshTags(OneSignal);
+  });
+
   $("btn-refresh-tags").addEventListener("click", () => refreshTags(OneSignal));
 
   // Subscription ID i OneSignal ID pojawiaja sie chwile po inicie.
@@ -288,6 +345,7 @@ OneSignalDeferred.push(async function (OneSignal) {
 // --- rzeczy niezalezne od SDK ----------------------------------------------
 
 $("external-id").addEventListener("input", () => syncSignupButton());
+$("group-name").addEventListener("input", () => syncGroupButton());
 
 document.querySelectorAll("[data-copy]").forEach((btn) => {
   btn.addEventListener("click", async () => {

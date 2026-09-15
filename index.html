@@ -95,10 +95,42 @@
     </p>
   </section>
 
-  <!-- 4. TAGI -->
+  <!-- 4. GRUPA -->
   <section class="card">
-    <h2><span class="num">4</span> Tagi <span class="tagline">segmentacja</span></h2>
-    <p class="lead">Do wysylki grupowej zamiast pojedynczej, np. wszyscy z <code>plan = pro</code>.</p>
+    <h2><span class="num">4</span> Grupa <span class="tagline">wysylka zbiorcza</span></h2>
+    <p class="lead">
+      Przypisz sie do grupy, a dostaniesz polecenie wysylajace push do
+      <strong>wszystkich</strong> jej czlonkow. Pod spodem to zwykly tag
+      <code>grupa</code> — segmentu nie trzeba nigdzie zakladac.
+    </p>
+
+    <form id="group-form" class="inline-form">
+      <input id="group-name" type="text" placeholder="np. vip" autocomplete="off"
+             spellcheck="false" required />
+      <button id="btn-group" class="btn btn-primary" type="submit" disabled>Przypisz do grupy</button>
+    </form>
+
+    <div class="btn-row">
+      <button id="btn-leave-group" class="btn" disabled>Wyjdz z grupy</button>
+    </div>
+
+    <p class="hint">Aktualna grupa: <code id="stat-group">—</code></p>
+
+    <div class="snippet">
+      <pre id="curl-group">—</pre>
+      <button class="btn-ghost" data-copy="curl-group">Kopiuj</button>
+    </div>
+    <p class="hint">
+      <code>filters</code> liczy odbiorcow w momencie wysylki, wiec nie trzeba
+      wczesniej tworzyc segmentu w panelu. Segment zaloz dopiero wtedy, gdy ta
+      sama grupa przyda Ci sie regularnie.
+    </p>
+  </section>
+
+  <!-- 5. TAGI -->
+  <section class="card">
+    <h2><span class="num">5</span> Tagi <span class="tagline">dowolne pary</span></h2>
+    <p class="lead">To samo co wyzej, ale bez ograniczenia do jednego klucza — np. <code>plan = pro</code>.</p>
     <form id="tag-form" class="inline-form">
       <input id="tag-key" type="text" placeholder="klucz (np. plan)" autocomplete="off" required />
       <input id="tag-value" type="text" placeholder="wartosc (np. pro)" autocomplete="off" required />
@@ -110,9 +142,9 @@
     <ul id="tag-list" class="tag-list"><li class="empty">Brak tagow.</li></ul>
   </section>
 
-  <!-- 5. LOG -->
+  <!-- 6. LOG -->
   <section class="card">
-    <h2><span class="num">5</span> Zdarzenia na zywo</h2>
+    <h2><span class="num">6</span> Zdarzenia na zywo</h2>
     <p class="lead">Klikniecia w powiadomienie, dostarczenia przy otwartej karcie, zmiany zgody i subskrypcji.</p>
     <div class="btn-row">
       <button id="btn-clear-log" class="btn">Wyczysc log</button>

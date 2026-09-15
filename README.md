@@ -73,8 +73,49 @@ Sekcja 3 na stronie generuje to polecenie z juz wklejonym Twoim ID.
 
 ## Wysylka do grupy
 
-Sekcja 4 dodaje tagi (np. `plan = pro`). W panelu: **Audience -> Segments ->
-New Segment** -> filtr `plan is pro`, potem wyslij push do tego segmentu.
+Segmentu **nie da sie utworzyc z przegladarki** — Web SDK nie ma takiego API.
+Segment to zreszta nie lista osob, tylko zapisany filtr; czlonkostwo wylicza
+sie samo. Z aplikacji nadajesz wiec tag, a grupe definiujesz po stronie wysylki.
+
+Sekcja 4 przypisuje tag `grupa` i generuje polecenie celujace w cala grupe:
+
+```bash
+curl -X POST https://api.onesignal.com/notifications \
+  -H "Authorization: Key TWOJ_REST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "app_id": "c3f290c3-e053-4410-a4a8-83d24e11c8b4",
+    "target_channel": "push",
+    "filters": [
+      { "field": "tag", "key": "grupa", "relation": "=", "value": "vip" }
+    ],
+    "contents": { "en": "Push do calej grupy vip" }
+  }'
+```
+
+`filters` liczy odbiorcow w momencie wysylki, wiec segment w panelu jest zbedny.
+
+`filters` i `include_aliases` wykluczaja sie — jedno wywolanie celuje albo w
+liste ID, albo w filtr, nigdy w oba naraz.
+
+### Kiedy jednak zalozyc segment
+
+Gdy ta sama grupa przyda sie regularnie. Panel: **Audience -> Segments ->
+New Segment** -> filtr `grupa is vip`. Programowo, wylacznie z serwera:
+
+```bash
+curl -X POST https://api.onesignal.com/apps/c3f290c3-e053-4410-a4a8-83d24e11c8b4/segments \
+  -H "Authorization: Key TWOJ_REST_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "VIP",
+    "filters": [
+      { "field": "tag", "key": "grupa", "relation": "=", "value": "vip" }
+    ]
+  }'
+```
+
+Sekcja 5 robi to samo co 4, ale dla dowolnych par klucz-wartosc.
 
 ## Jak przetestowac
 
