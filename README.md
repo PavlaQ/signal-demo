@@ -15,7 +15,10 @@ albo z terminala przez REST API.
 | `style.css` | wyglad |
 | `OneSignalSDKWorker.js` | service worker, **musi lezec w katalogu glownym** |
 | `vercel.json` | naglowki dla service workera |
-| `api/create-segment.js` | funkcja serverless zakladajaca segment per uzytkownik |
+| `admin.html` / `admin.js` | panel wysylki: lista uzytkownikow, osobny push do kazdego |
+| `api/users.js` | lista zapisanych uzytkownikow |
+| `api/send.js` | wysylka pusha do jednego External ID |
+| `api/_onesignal.js` | wspolna obsluga wywolan do OneSignala |
 
 ## Deploy na Vercel
 
@@ -41,10 +44,16 @@ demo wypisuje w sekcji 5.
 Endpoint `api/create-segment.js` potrzebuje dwoch zmiennych. Vercel ->
 **Settings -> Environment Variables**:
 
-| Zmienna | Skad |
-|---|---|
-| `ONESIGNAL_REST_API_KEY` | OneSignal -> Settings -> Keys & IDs -> REST API Key |
-| `ONESIGNAL_APP_ID` | OneSignal -> Settings -> Keys & IDs -> App ID |
+| Zmienna | Skad | Wymagana |
+|---|---|---|
+| `ONESIGNAL_REST_API_KEY` | OneSignal -> Settings -> Keys & IDs | tak |
+| `ONESIGNAL_APP_ID` | OneSignal -> Settings -> Keys & IDs | tak |
+| `ADMIN_TOKEN` | wymyslasz sam | nie, ale patrz nizej |
+
+Bez `ADMIN_TOKEN` panel `/admin.html` jest **otwarty dla kazdego, kto zna
+adres** — i kazdy moze wyslac powiadomienie do Twoich uzytkownikow. Panel
+wyswietla wtedy ostrzezenie. Ustaw token, zanim wystawisz to gdziekolwiek
+poza wlasnym testem.
 
 Bez nich reszta demo dziala normalnie — nie powstanie tylko segment, a log
 w sekcji 6 powie dlaczego.
@@ -83,42 +92,6 @@ anonimowo. W OneSignalu to pole nazywa sie **External ID**.
 
 W prawdziwej aplikacji zamiast pola tekstowego wolasz `OneSignal.login(...)`
 z ID zalogowanego uzytkownika, zaraz po jego zalogowaniu.
-
-## Segment per uzytkownik
-
-Kompozytor w panelu celuje **wylacznie w segmenty** — nie da sie w nim wybrac
-osoby po External ID. Dlatego zapis uzytkownika robi trzy rzeczy:
-
-```
-OneSignal.login(id)              tozsamosc
-OneSignal.User.addTag("uid", id) segment nie filtruje po External ID, wiec ID ladzie tez w tagu
-POST /api/create-segment         serwer zaklada segment o nazwie = ID, filtr: tag uid = id
-```
-
-Segment pojawia sie w kompozytorze od razu po zapisie. Ponowny zapis tego
-samego ID zwraca `{"status":"exists"}` i niczego nie duplikuje.
-
-### Wymaga platnego planu
-
-Create Segment API zwraca `403 — This API is not available for applications on
-your plan` na darmowym koncie. Reszta demo dziala wtedy normalnie, a log
-w sekcji 6 zapisuje ostrzezenie zamiast bledu.
-
-Alternatywy dzialajace na kazdym planie:
-
-| Cel | Jak |
-|---|---|
-| Wyslac do jednej osoby | `include_aliases` — sekcja 3 |
-| Wyslac do grupy | `filters` — sekcja 4, bez zakladania segmentu |
-| Wybrac osobe w panelu | zaloz segment recznie: **Audience -> Segments -> New Segment**, filtr `uid is <ID>` |
-
-**To rozwiazanie nie skaluje sie.** Segmenty sa pomyslane pod grupy, nie pod
-pojedyncze osoby — przy setkach uzytkownikow lista segmentow w panelu staje
-sie bezuzyteczna. Do demo jest w porzadku; w produkcji wysylaj przez
-`include_aliases` (ponizej), ktore nie wymaga zadnych segmentow.
-
-Endpoint jest otwarty — kazdy, kto zna adres, moze zalozyc segment. Przed
-produkcyjnym uzyciem dopisz uwierzytelnienie.
 
 ## Wysylka do jednej osoby
 
@@ -195,6 +168,24 @@ Sekcja 5 robi to samo co 4, ale dla dowolnych par klucz-wartosc.
 2. Sekcja 1 -> wpisz ID -> **Zapisz mnie** -> zaakceptuj prompt przegladarki
 3. Sekcja 3 -> skopiuj `curl`, podmien klucz, uruchom w terminalu
 4. Powiadomienie pojawi sie na ekranie, a wpis w logu w sekcji 5
+
+## Panel wysylki
+
+`/admin.html` listuje zapisanych uzytkownikow i pozwala wyslac osobne
+powiadomienie do kazdego z nich. Wysylka idzie przez `include_aliases`, wiec
+nie wymaga segmentow ani platnego planu.
+
+Lista uzytkownikow korzysta z endpointu listujacego subskrypcje, ktory bywa
+niedostepny. Gdy zawiedzie, panel nadal dziala — formularz "Wyslij na wpisane
+ID" nie zalezy od listy.
+
+### Czego nie da sie zrobic bez platnego planu
+
+Create Segment API zwraca `403 — This API is not available for applications on
+your plan`. Nie da sie wiec zakladac segmentow programowo. To nie blokuje
+niczego istotnego: wysylka po External ID (`include_aliases`) i po tagu
+(`filters`) dziala na kazdym planie, a segment mozna zalozyc recznie w panelu
+OneSignal — strona nadaje tag `uid` rowny External ID wlasnie po to.
 
 ## Czego demo nie robi
 

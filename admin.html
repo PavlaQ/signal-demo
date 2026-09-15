@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Panel wysylki — OneSignal Demo</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>" />
+  <script src="config.js"></script>
+  <script src="admin.js" defer></script>
+</head>
+<body>
+
+<header class="hero">
+  <span class="bell">📋</span>
+  <h1>Panel wysylki</h1>
+  <p>Lista zapisanych uzytkownikow. Do kazdego wysylasz osobne powiadomienie.</p>
+  <p><a class="backlink" href="index.html">&larr; wroc do demo</a></p>
+</header>
+
+<main>
+
+  <div id="warn-open" class="banner" hidden>
+    <strong>Panel jest otwarty dla wszystkich.</strong>
+    Ustaw zmienna <code>ADMIN_TOKEN</code> na Vercelu i zrob redeploy, inaczej kazdy,
+    kto zna ten adres, wysle powiadomienia do Twoich uzytkownikow.
+  </div>
+
+  <section class="card" id="token-card" hidden>
+    <h2>Token administratora</h2>
+    <p class="lead">Panel jest chroniony. Podaj wartosc zmiennej <code>ADMIN_TOKEN</code>.</p>
+    <form id="token-form" class="inline-form">
+      <input id="admin-token" type="password" placeholder="token" autocomplete="off" required />
+      <button class="btn btn-primary" type="submit">Odblokuj</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Uzytkownicy <span class="tagline" id="user-count"></span></h2>
+    <div class="btn-row">
+      <button id="btn-refresh" class="btn">Odswiez liste</button>
+    </div>
+    <div id="users"><p class="hint">Ladowanie…</p></div>
+  </section>
+
+  <section class="card">
+    <h2>Wyslij na wpisane ID</h2>
+    <p class="lead">Przydaje sie, gdy lista jest niedostepna albo znasz ID z pamieci.</p>
+    <form id="manual-form">
+      <div class="inline-form">
+        <input id="manual-id" type="text" placeholder="np. user_1234" autocomplete="off" required />
+      </div>
+      <div class="inline-form">
+        <input id="manual-title" type="text" placeholder="tytul (opcjonalnie)" autocomplete="off" />
+        <input id="manual-message" type="text" placeholder="tresc powiadomienia" autocomplete="off" required />
+        <button class="btn btn-primary" type="submit">Wyslij</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Log</h2>
+    <div class="btn-row">
+      <button id="btn-clear-log" class="btn">Wyczysc</button>
+    </div>
+    <ol id="log" class="log"></ol>
+  </section>
+
+</main>
+
+<footer>
+  <p>App ID: <code id="foot-appid">—</code></p>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+</body>
+</html>
