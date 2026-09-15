@@ -15,6 +15,7 @@ albo z terminala przez REST API.
 | `style.css` | wyglad |
 | `OneSignalSDKWorker.js` | service worker, **musi lezec w katalogu glownym** |
 | `vercel.json` | naglowki dla service workera |
+| `api/create-segment.js` | funkcja serverless zakladajaca segment per uzytkownik |
 
 ## Deploy na Vercel
 
@@ -35,6 +36,19 @@ SDK dziala **wylacznie** na domenie wpisanej jako Site URL. Na kazdej innej
 (w tym `localhost`) init konczy sie bledem `Can only be used on: ...`, ktory
 demo wypisuje w sekcji 5.
 
+## Zmienne srodowiskowe
+
+Endpoint `api/create-segment.js` potrzebuje dwoch zmiennych. Vercel ->
+**Settings -> Environment Variables**:
+
+| Zmienna | Skad |
+|---|---|
+| `ONESIGNAL_REST_API_KEY` | OneSignal -> Settings -> Keys & IDs -> REST API Key |
+| `ONESIGNAL_APP_ID` | OneSignal -> Settings -> Keys & IDs -> App ID |
+
+Bez nich reszta demo dziala normalnie — nie powstanie tylko segment, a log
+w sekcji 6 powie dlaczego.
+
 ## Identyfikacja uzytkownikow
 
 To sedno tego demo. Strona wola `OneSignal.login(id)` **przed** prosba o zgode,
@@ -47,6 +61,28 @@ anonimowo. W OneSignalu to pole nazywa sie **External ID**.
 
 W prawdziwej aplikacji zamiast pola tekstowego wolasz `OneSignal.login(...)`
 z ID zalogowanego uzytkownika, zaraz po jego zalogowaniu.
+
+## Segment per uzytkownik
+
+Kompozytor w panelu celuje **wylacznie w segmenty** — nie da sie w nim wybrac
+osoby po External ID. Dlatego zapis uzytkownika robi trzy rzeczy:
+
+```
+OneSignal.login(id)              tozsamosc
+OneSignal.User.addTag("uid", id) segment nie filtruje po External ID, wiec ID ladzie tez w tagu
+POST /api/create-segment         serwer zaklada segment o nazwie = ID, filtr: tag uid = id
+```
+
+Segment pojawia sie w kompozytorze od razu po zapisie. Ponowny zapis tego
+samego ID zwraca `{"status":"exists"}` i niczego nie duplikuje.
+
+**To rozwiazanie nie skaluje sie.** Segmenty sa pomyslane pod grupy, nie pod
+pojedyncze osoby — przy setkach uzytkownikow lista segmentow w panelu staje
+sie bezuzyteczna. Do demo jest w porzadku; w produkcji wysylaj przez
+`include_aliases` (ponizej), ktore nie wymaga zadnych segmentow.
+
+Endpoint jest otwarty — kazdy, kto zna adres, moze zalozyc segment. Przed
+produkcyjnym uzyciem dopisz uwierzytelnienie.
 
 ## Wysylka do jednej osoby
 

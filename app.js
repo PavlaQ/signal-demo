@@ -11,6 +11,8 @@ const $ = (id) => document.getElementById(id);
 const cfg = window.DEMO_CONFIG;
 const STORAGE_KEY = "demo_external_id";
 const GROUP_TAG = "grupa";
+// Segment nie potrafi filtrowac po External ID, wiec to samo ID ladzie tez w tagu.
+const UID_TAG = "uid";
 
 // Kolejka SDK. Wszystko co dotyka OneSignala wrzucamy tutaj — SDK laduje sie
 // asynchronicznie (defer), wiec bezposrednie wywolania moglyby wyprzedzic init.
@@ -101,6 +103,42 @@ function renderGroupSnippet(group) {
   pre.dataset.ready = "true";
 }
 
+// --- segment per uzytkownik ------------------------------------------------
+
+// Tworzenie segmentu wymaga REST API Key, wiec robi to endpoint na serwerze.
+// Lokalnie (bez Vercela) ten endpoint nie istnieje — brak segmentu nie moze
+// wtedy blokowac reszty zapisu.
+async function ensureSegment(externalId) {
+  let res;
+  try {
+    res = await fetch("/api/create-segment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ externalId }),
+    });
+  } catch (err) {
+    log(`Segment pominiety — backend nieosiagalny (${err.message}).`, "warn");
+    return;
+  }
+
+  if (res.status === 404) {
+    log("Segment pominiety — endpoint /api/create-segment nie istnieje na tym hoscie.", "warn");
+    return;
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    log(`Segment nieutworzony: ${data.error || `HTTP ${res.status}`}`, "bad");
+    return;
+  }
+
+  if (data.status === "exists") {
+    log(`Segment "${externalId}" juz istnial.`);
+  } else {
+    log(`Segment "${externalId}" utworzony — jest juz w kompozytorze w panelu.`, "ok");
+  }
+}
+
 // --- odswiezanie panelu statusu --------------------------------------------
 
 function refreshStatus(OneSignal) {
@@ -156,7 +194,8 @@ async function refreshTags(OneSignal) {
   const list = $("tag-list");
   list.innerHTML = "";
 
-  const entries = Object.entries(tags).filter(([key]) => key !== GROUP_TAG);
+  const hidden = new Set([GROUP_TAG, UID_TAG]);
+  const entries = Object.entries(tags).filter(([key]) => !hidden.has(key));
   if (entries.length === 0) {
     list.innerHTML = '<li class="empty">Brak tagow.</li>';
     return;
@@ -270,6 +309,11 @@ OneSignalDeferred.push(async function (OneSignal) {
     await OneSignal.login(id);
     rememberId(id);
     log(`Przypisano External ID: ${id}`, "ok");
+
+    // Kolejnosc ma znaczenie: segment liczy tylko tych, ktorzy JUZ maja tag,
+    // wiec tag musi byc nadany zanim endpoint zalozy segment.
+    await OneSignal.User.addTag(UID_TAG, id);
+    await ensureSegment(id);
 
     if (OneSignal.Notifications.permissionNative === "granted") {
       // Zgoda juz jest — wystarczy wrocic do subskrypcji, prompt sie nie pokaze.
