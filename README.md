@@ -98,6 +98,20 @@ POST /api/create-segment         serwer zaklada segment o nazwie = ID, filtr: ta
 Segment pojawia sie w kompozytorze od razu po zapisie. Ponowny zapis tego
 samego ID zwraca `{"status":"exists"}` i niczego nie duplikuje.
 
+### Wymaga platnego planu
+
+Create Segment API zwraca `403 — This API is not available for applications on
+your plan` na darmowym koncie. Reszta demo dziala wtedy normalnie, a log
+w sekcji 6 zapisuje ostrzezenie zamiast bledu.
+
+Alternatywy dzialajace na kazdym planie:
+
+| Cel | Jak |
+|---|---|
+| Wyslac do jednej osoby | `include_aliases` — sekcja 3 |
+| Wyslac do grupy | `filters` — sekcja 4, bez zakladania segmentu |
+| Wybrac osobe w panelu | zaloz segment recznie: **Audience -> Segments -> New Segment**, filtr `uid is <ID>` |
+
 **To rozwiazanie nie skaluje sie.** Segmenty sa pomyslane pod grupy, nie pod
 pojedyncze osoby — przy setkach uzytkownikow lista segmentow w panelu staje
 sie bezuzyteczna. Do demo jest w porzadku; w produkcji wysylaj przez

@@ -97,6 +97,18 @@ module.exports = async (req, res) => {
   // Powtorny zapis tego samego uzytkownika jest normalny — istniejacy segment
   // traktujemy jak sukces, zeby strona nie musiala tego rozrozniac.
   const message = JSON.stringify(payload.errors || payload);
+
+  // Tworzenie segmentow przez API jest platne. Na darmowym planie ten endpoint
+  // nie zadziala nigdy — to nie awaria, tylko ograniczenie konta.
+  if (response.status === 403) {
+    return res.status(403).json({
+      error:
+        "Tworzenie segmentow przez API nie jest dostepne na Twoim planie OneSignal. " +
+        "Segmenty zakladaj recznie w panelu, albo wysylaj po External ID przez " +
+        "include_aliases — to dziala na kazdym planie.",
+      reason: "plan",
+    });
+  }
   if (response.status === 409 || /already|taken|exist/i.test(message)) {
     return res.status(200).json({ status: "exists", name: externalId, scheme });
   }

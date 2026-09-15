@@ -128,7 +128,8 @@ async function ensureSegment(externalId) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    log(`Segment nieutworzony: ${data.error || `HTTP ${res.status}`}`, "bad");
+    // Ograniczenie planu nie jest bledem do naprawienia — reszta demo dziala.
+    log(`Segment pominiety: ${data.error || `HTTP ${res.status}`}`, data.reason === "plan" ? "warn" : "bad");
     return;
   }
 
