@@ -56,9 +56,18 @@ module.exports = async (req, res) => {
 
   const users = [...byUser.values()].sort((a, b) => b.lastActive - a.lastActive);
 
+  // OneSignal potrafi zwrocic ujemny total_count dla aplikacji z uszkodzonymi
+  // licznikami audiencji — wtedy liczba zbudowana z faktycznych rekordow jest
+  // jedyna sensowna.
+  const reported = result.payload.total_count;
+  const totalSubscriptions = Number.isInteger(reported) && reported >= 0
+    ? reported
+    : (result.payload.players || []).length;
+
   return res.status(200).json({
     users,
-    totalSubscriptions: result.payload.total_count ?? users.length,
+    totalSubscriptions,
+    reportedCount: reported,
     unprotected: auth.unprotected === true,
   });
 };
