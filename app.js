@@ -213,6 +213,7 @@ async function init() {
     const { type, title, body } = event.data || {};
     if (type === "push-received") log(`Odebrane: ${title} — ${body}`, "ok");
     if (type === "push-clicked") log(`Klikniete: ${title}`, "ok");
+    if (type === "push-error") log(`Przegladarka odmowila wyswietlenia: ${event.data.error}`, "bad");
   });
 
   await refreshStatus();
@@ -240,6 +241,31 @@ $("btn-unsubscribe").addEventListener("click", async () => {
     log(`Blad wypisania: ${err.message}`, "bad");
   } finally {
     await refreshStatus();
+  }
+});
+
+// Test z pominieciem sieci: jesli to powiadomienie sie nie pokaze, wina nie
+// lezy po stronie wysylki, tylko wyswietlania.
+$("btn-test-local").addEventListener("click", async () => {
+  if (Notification.permission !== "granted") {
+    log("Najpierw musisz przyznac zgode na powiadomienia.", "warn");
+    return;
+  }
+  if (!registration) {
+    log("Service worker niezarejestrowany — nie ma czym wyswietlic.", "bad");
+    return;
+  }
+  try {
+    await registration.showNotification("Test lokalny", {
+      body: "Widzisz to? Wyswietlanie dziala poprawnie.",
+      icon: "icon.png",
+      badge: "icon.png",
+      requireInteraction: true,
+      tag: "local-test",
+    });
+    log("Wywolano showNotification() — powiadomienie powinno byc widoczne.", "ok");
+  } catch (err) {
+    log(`showNotification() odrzucone: ${err.message}`, "bad");
   }
 });
 

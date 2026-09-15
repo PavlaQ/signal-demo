@@ -23,11 +23,23 @@ self.addEventListener("push", (event) => {
     icon: "icon.png",
     badge: "icon.png",
     tag: data.tag || undefined,
+    // Bez tego powiadomienie znika po kilku sekundach i latwo je przeoczyc.
+    requireInteraction: true,
     data: { url: data.url || "./" },
   };
 
   event.waitUntil((async () => {
-    await self.registration.showNotification(title, options);
+    try {
+      await self.registration.showNotification(title, options);
+    } catch (err) {
+      // Przegladarka odmowila wyswietlenia — warto, zeby trafilo to do logu
+      // strony, bo inaczej push wyglada na zgubiony.
+      const tabs = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const tab of tabs) {
+        tab.postMessage({ type: "push-error", error: String(err && err.message) });
+      }
+      return;
+    }
 
     // Otwarte karty dostaja kopie do logu na zywo. To tylko podglad —
     // powiadomienie wyswietla sie niezaleznie od tego, czy ktos slucha.

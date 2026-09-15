@@ -109,6 +109,24 @@ CREATE TABLE subscriptions (
 aktualizuje wpis zamiast tworzyc duplikat. To takze sciezka przypisania
 urzadzenia do innego uzytkownika.
 
+## Powiadomienie nie pojawia sie na ekranie
+
+Jesli log na stronie pokazuje „Odebrane", ale nic nie widac, push doszedl —
+blokada jest w wyswietlaniu. Kliknij **Pokaz testowe powiadomienie**: omija
+siec i wyswietla powiadomienie lokalnie. Jesli tez go nie widac, sprawdz
+kolejno:
+
+1. **macOS -> Ustawienia -> Powiadomienia -> Google Chrome** — „Zezwalaj na
+   powiadomienia" wlaczone, styl ustawiony na *Banery* lub *Alerty*
+2. **Tryb skupienia / Nie przeszkadzac** — wylaczony
+3. **chrome://settings/content/notifications** — strona nie jest na liscie
+   zablokowanych
+4. **Windows -> Ustawienia -> System -> Powiadomienia** — Chrome dozwolony,
+   asystent koncentracji wylaczony
+
+Powiadomienia maja `requireInteraction: true`, wiec zostaja na ekranie do
+zamkniecia. Jesli mimo to znikaja same, system je przycina — patrz punkt 1.
+
 ## Wygasle subskrypcje
 
 Serwer push odpowiada `404` lub `410`, gdy uzytkownik sie wypisal albo
