@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OneSignal Web Push — Demo</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>" />
+
+  <script src="config.js"></script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+<header class="hero">
+  <span class="bell">🔔</span>
+  <h1>OneSignal Web Push</h1>
+  <p>Demo mozliwosci Web SDK v16 — subskrypcja, tagi, identyfikacja i zdarzenia na zywo.</p>
+</header>
+
+<main>
+
+  <!-- 1. STATUS -->
+  <section class="card">
+    <h2><span class="num">1</span> Status</h2>
+    <dl class="status-grid">
+      <dt>Zgoda przegladarki</dt>
+      <dd><span id="stat-permission" class="pill pill-muted">—</span></dd>
+
+      <dt>Subskrypcja push</dt>
+      <dd><span id="stat-optedin" class="pill pill-muted">—</span></dd>
+
+      <dt>Subscription ID</dt>
+      <dd class="copyrow">
+        <code id="stat-subid">—</code>
+        <button class="btn-ghost" data-copy="stat-subid" title="Kopiuj">Kopiuj</button>
+      </dd>
+
+      <dt>OneSignal ID</dt>
+      <dd class="copyrow">
+        <code id="stat-osid">—</code>
+        <button class="btn-ghost" data-copy="stat-osid" title="Kopiuj">Kopiuj</button>
+      </dd>
+    </dl>
+    <p class="hint">
+      Skopiuj <strong>Subscription ID</strong> i wklej w OneSignal &rarr; <em>Messages &rarr; New Push &rarr;
+      Send to Test Device</em>, zeby wyslac powiadomienie tylko na to urzadzenie.
+    </p>
+  </section>
+
+  <!-- 2. SUBSKRYPCJA -->
+  <section class="card">
+    <h2><span class="num">2</span> Subskrypcja</h2>
+    <p class="lead">Wlasne przyciski zamiast domyslnego dzwonka OneSignala — pelna kontrola nad momentem pytania o zgode.</p>
+    <div class="btn-row">
+      <button id="btn-subscribe" class="btn btn-primary">Wlacz powiadomienia</button>
+      <button id="btn-unsubscribe" class="btn">Wylacz</button>
+      <button id="btn-slidedown" class="btn">Pokaz prompt OneSignala</button>
+    </div>
+    <p class="hint" id="perm-warning" hidden>
+      Zgoda jest zablokowana na poziomie przegladarki. Odblokuj ja w ustawieniach strony
+      (ikona klodki w pasku adresu), inaczej przyciski nic nie zrobia.
+    </p>
+  </section>
+
+  <!-- 3. TAGI -->
+  <section class="card">
+    <h2><span class="num">3</span> Tagi <span class="tagline">segmentacja odbiorcow</span></h2>
+    <p class="lead">Tagi pozwalaja wyslac push tylko do czesci uzytkownikow, np. <code>plan = pro</code>.</p>
+    <form id="tag-form" class="inline-form">
+      <input id="tag-key" type="text" placeholder="klucz (np. plan)" autocomplete="off" required />
+      <input id="tag-value" type="text" placeholder="wartosc (np. pro)" autocomplete="off" required />
+      <button class="btn btn-primary" type="submit">Dodaj tag</button>
+    </form>
+    <div class="btn-row">
+      <button id="btn-refresh-tags" class="btn">Odswiez liste</button>
+    </div>
+    <ul id="tag-list" class="tag-list"><li class="empty">Brak tagow.</li></ul>
+  </section>
+
+  <!-- 4. EXTERNAL ID -->
+  <section class="card">
+    <h2><span class="num">4</span> External ID <span class="tagline">identyfikacja</span></h2>
+    <p class="lead">Polacz subskrypcje z ID uzytkownika z Twojego systemu — jeden uzytkownik, wiele urzadzen.</p>
+    <form id="login-form" class="inline-form">
+      <input id="external-id" type="text" placeholder="np. user_1234" autocomplete="off" required />
+      <button class="btn btn-primary" type="submit">Zaloguj</button>
+    </form>
+    <div class="btn-row">
+      <button id="btn-logout" class="btn">Wyloguj</button>
+    </div>
+    <p class="hint">Aktualne External ID: <code id="stat-extid">—</code></p>
+  </section>
+
+  <!-- 5. LOG -->
+  <section class="card">
+    <h2><span class="num">5</span> Zdarzenia na zywo</h2>
+    <p class="lead">Klikniecia w powiadomienie, dostarczenia przy otwartej karcie, zmiany zgody i subskrypcji.</p>
+    <div class="btn-row">
+      <button id="btn-clear-log" class="btn">Wyczysc log</button>
+    </div>
+    <ol id="log" class="log"></ol>
+  </section>
+
+</main>
+
+<footer>
+  <p>App ID: <code id="foot-appid">—</code></p>
+  <p>Wysylka powiadomien odbywa sie z panelu OneSignal — ta strona tylko je odbiera.</p>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+</body>
+</html>
