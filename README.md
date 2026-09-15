@@ -5,6 +5,7 @@ zapisuje sie pod **wlasnym ID**, dzieki czemu mozna do niego pozniej wyslac
 powiadomienie pojedynczo. Bez backendu — wysylka idzie z panelu OneSignal
 albo z terminala przez REST API.
 
+
 ## Pliki
 
 | Plik | Rola |
